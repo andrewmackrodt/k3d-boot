@@ -1,0 +1,15 @@
+--- calico.yaml	2023-04-18 21:20:45
++++ calico.yaml	2023-03-17 05:34:51
+@@ -3583,12 +3583,6 @@
+             # no effect. This should fall within `--cluster-cidr`.
+             # - name: CALICO_IPV4POOL_CIDR
+             #   value: "192.168.0.0/16"
+-            # Set MTU for the Wireguard tunnel device.
+-            - name: FELIX_WIREGUARDMTU
+-              valueFrom:
+-                configMapKeyRef:
+-                  name: calico-config
+-                  key: veth_mtu
+             # Disable file logging so `kubectl logs` works.
+             - name: CALICO_DISABLE_FILE_LOGGING
+               value: "true"
