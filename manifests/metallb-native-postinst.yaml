@@ -1,0 +1,14 @@
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: cluster-pool
+  namespace: metallb-system
+spec:
+  addresses:
+    - {{ .Values.ingressRange }}
+---
+apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata:
+  name: cluster-advertisement
+  namespace: metallb-system
