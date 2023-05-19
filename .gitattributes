@@ -1,3 +1,4 @@
+manifests/cert-manager/** linguist-vendored
 manifests/cilium/** linguist-vendored
 manifests/ingress-nginx/** linguist-vendored
 manifests/calico.yaml linguist-vendored

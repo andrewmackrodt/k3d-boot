@@ -3,6 +3,7 @@
 Linux and macOS script to create a k3d (k3s in docker) cluster for development
 including:
 
+- [Cert Manager](https://github.com/cert-manager/cert-manager) provision and manage TLS certificates in Kubernetes
 - [Cilium](https://github.com/cilium/cilium) eBPF-based networking, security, and observability
 - [Ingress-NGINX](https://github.com/kubernetes/ingress-nginx) ingress controller for Kubernetes using NGINX
 - [Kubernetes Dashboard](https://github.com/kubernetes/dashboard) general-purpose web UI for Kubernetes

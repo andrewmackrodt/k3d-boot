@@ -268,6 +268,17 @@ helm upgrade --install ingress-nginx ./manifests/ingress-nginx \
 echo "waiting for ingress-nginx deployment.apps/ingress-nginx-controller"
 kubectl --context "$context" -n ingress-nginx wait deployment ingress-nginx-controller --for condition=Available=True --timeout=300s
 
+# cert-manager
+helm upgrade --install cert-manager ./manifests/cert-manager \
+  --kube-context "$context" \
+  --create-namespace \
+  --namespace cert-manager \
+  --set installCRDs=true
+
+echo "waiting for cert-manager deployment.apps/cert-manager"
+kubectl --context "$context" -n cert-manager wait deployment cert-manager --for condition=Available=True --timeout=300s
+sed "s/{{ .Values.name }}/k3d-$cluster_name/g" ./manifests/cert-manager-postinst.yaml | kubectl --context "$context" apply -f -
+
 # detect ingress-nginx service ip address
 lb_ip=$(kubectl --context "$context" -n ingress-nginx get svc/ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 
