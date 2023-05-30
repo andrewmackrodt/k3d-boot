@@ -385,6 +385,27 @@ helm upgrade --install prometheus ./manifests/prometheus \
   --create-namespace \
   --namespace prometheus
 
+# grafana
+helm upgrade --install grafana ./manifests/grafana \
+  --kube-context "$context" \
+  --namespace prometheus \
+  --set datasources."datasources\.yaml".apiVersion=1 \
+  --set datasources."datasources\.yaml".datasources[0].name=Prometheus \
+  --set datasources."datasources\.yaml".datasources[0].type=prometheus \
+  --set datasources."datasources\.yaml".datasources[0].url=http://prometheus-server.prometheus.svc.cluster.local \
+  --set datasources."datasources\.yaml".datasources[0].isDefault=true \
+  --set ingress.annotations."cert-manager\.io/cluster-issuer"="k3d-tls-issuer" \
+  --set ingress.annotations."nginx\.ingress\.kubernetes\.io/force-ssl-redirect"="'true'" \
+  --set ingress.enabled=true \
+  --set ingress.hosts[0]="grafana.k3s.localhost" \
+  --set ingress.hosts[1]="grafana.$proxy_host" \
+  --set ingress.hosts[2]="grafana.$host_domain" \
+  --set ingress.tls[0].hosts[0]="grafana.k3s.localhost" \
+  --set ingress.tls[0].hosts[1]="grafana.$proxy_host" \
+  --set ingress.tls[0].hosts[2]="grafana.$host_domain" \
+  --set ingress.tls[0].secretName="tls-cert" \
+  --set persistence.enabled=true
+
 # print endpoints
 cat <<YML
 
@@ -397,5 +418,17 @@ YML
 if [[ "$proxy_tls_port" != "" ]]; then
   cat <<YML
     - https://console.$host_domain:$proxy_tls_port/#login
+YML
+fi
+cat <<YML
+
+grafana:
+  password: $(kubectl --context "$context" -n prometheus get secret grafana -o jsonpath="{.data.admin-password}" | base64 --decode)
+  urls:
+    - https://grafana.$proxy_host/
+YML
+if [[ "$proxy_tls_port" != "" ]]; then
+  cat <<YML
+    - https://grafana.$host_domain:$proxy_tls_port/
 YML
 fi
