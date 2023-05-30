@@ -43,3 +43,4 @@ curl_download "https://raw.githubusercontent.com/metallb/metallb/v0.13.9/config/
 helm_download "https://kubernetes.github.io/ingress-nginx/" ingress-nginx
 helm_download "https://charts.jetstack.io" jetstack/cert-manager
 curl_download "https://raw.githubusercontent.com/kubernetes/dashboard/v2.7.0/aio/deploy/recommended.yaml" kubernetes-dashboard.yaml
+helm_download "https://prometheus-community.github.io/helm-charts/" prometheus-community/prometheus
