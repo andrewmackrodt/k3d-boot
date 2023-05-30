@@ -261,6 +261,9 @@ helm upgrade --install ingress-nginx ./manifests/ingress-nginx \
   --set controller.config.compute-full-forwarded-for=true \
   "${ingress_args[@]}" \
   --set controller.ingressClassResource.default=true \
+  --set controller.metrics.enabled=true \
+  --set controller.podAnnotations."prometheus\.io/port"="10254" \
+  --set controller.podAnnotations."prometheus\.io/scrape"="true" \
   --set controller.service.nodePorts.http=30080 \
   --set controller.service.nodePorts.https=30443 \
   --set controller.watchIngressWithoutClass=true
@@ -375,6 +378,12 @@ kubectl --context "$context" apply -f ./manifests/kubernetes-dashboard.yaml
 sed "s/{{ .Values.domain1 }}/$proxy_host/g" ./manifests/kubernetes-dashboard-postinst.yaml\
   | sed "s/{{ .Values.domain2 }}/$host_domain/g" \
   | kubectl --context "$context" apply -f -
+
+# prometheus
+helm upgrade --install prometheus ./manifests/prometheus \
+  --kube-context "$context" \
+  --create-namespace \
+  --namespace prometheus
 
 # print endpoints
 cat <<YML
