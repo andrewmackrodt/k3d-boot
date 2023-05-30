@@ -5,6 +5,7 @@ including:
 
 - [Cert Manager](https://github.com/cert-manager/cert-manager) provision and manage TLS certificates in Kubernetes
 - [Cilium](https://github.com/cilium/cilium) eBPF-based networking, security, and observability
+- [Grafana](https://github.com/grafana/grafana) visualize metrics, logs, and traces
 - [Ingress-NGINX](https://github.com/kubernetes/ingress-nginx) ingress controller for Kubernetes using NGINX
 - [Kubernetes Dashboard](https://github.com/kubernetes/dashboard) general-purpose web UI for Kubernetes
 - [MetalLB](https://github.com/metallb/metallb) network load-balancer implementation

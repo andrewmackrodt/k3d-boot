@@ -73,3 +73,15 @@ if [[ "$proxy_tls_port" != "" ]]; then
     - https://console.$host_domain:$proxy_tls_port/#login
 YML
 fi
+cat <<YML
+
+grafana:
+  password: $(kubectl --context "$context" -n prometheus get secret grafana -o jsonpath="{.data.admin-password}" | base64 --decode)
+  urls:
+    - https://grafana.$proxy_host/
+YML
+if [[ "$proxy_tls_port" != "" ]]; then
+  cat <<YML
+    - https://grafana.$host_domain:$proxy_tls_port/
+YML
+fi
