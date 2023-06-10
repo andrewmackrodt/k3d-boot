@@ -90,3 +90,19 @@ Alternatively, use `kubectl proxy` and visit http://localhost:8001/api/v1/namesp
 ### Hubble
 
 Use `kubectl port-forward`, e.g. `kubectl -n kube-system port-forward service/hubble-ui 8081:80` would make the service available at http://localhost:8081.
+
+### Grafana
+
+The password can be retrieved by running `kubectl -n monitoring get secret prometheus-operator-grafana -o jsonpath="{.data.admin-password}" | base64 --decode`.
+
+To access the ui visit https://grafana.k3s.localhost:8443/login.
+
+Alternatively, use `kubectl port-forward`, e.g. `kubectl -n monitoring port-forward service/prometheus-operator-grafana 3000:80` would make the service available at http://localhost:3000/login.
+
+### Prometheus
+
+Use `kubectl port-forward`, e.g. `kubectl -n monitoring port-forward service/prometheus-operator-prometheus 9090:9090` would make the service available at http://localhost:9090/graph.
+
+### Alertmanager
+
+Use `kubectl port-forward`, e.g. `kubectl -n monitoring port-forward service/prometheus-operator-alertmanager 9093:9093` would make the service available at http://localhost:9093/#/alerts.
