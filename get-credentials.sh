@@ -76,7 +76,7 @@ fi
 cat <<YML
 
 grafana:
-  password: $(kubectl --context "$context" -n prometheus get secret grafana -o jsonpath="{.data.admin-password}" | base64 --decode)
+  password: $(kubectl --context "$context" -n monitoring get secret prometheus-operator-grafana -o jsonpath="{.data.admin-password}" | base64 --decode)
   urls:
     - https://grafana.$proxy_host/
 YML

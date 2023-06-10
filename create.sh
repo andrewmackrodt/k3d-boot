@@ -200,6 +200,7 @@ case "$cni" in
     kubectl --context "$context" -n kube-system wait deployment calico-kube-controllers --for condition=Available=True --timeout=300s
     ;;
   cilium )
+    kubectl --context "$context" apply -f ./manifests/kube-prometheus-stack/crds/crd-servicemonitors.yaml
     if [[ $cluster_id -gt 0 ]]; then
       useAPIServer="true"
       identityAllocationMode="kvstore"
@@ -218,11 +219,18 @@ case "$cni" in
       --set clustermesh.useAPIServer="$useAPIServer" \
       --set hubble.enabled=true \
       --set hubble.metrics.enabled="{dns,drop,tcp,flow,icmp,http}" \
+      --set hubble.metrics.serviceMonitor.enabled=true \
       --set hubble.relay.enabled=true \
+      --set hubble.relay.prometheus.enabled=true \
+      --set hubble.relay.serviceMonitor.enabled=true \
       --set hubble.ui.enabled=true \
       --set identityAllocationMode="$identityAllocationMode" \
       --set ipam.operator.clusterPoolIPv4PodCIDRList[0]="$clusterPoolIPv4PodCIDR" \
-      --set operator.replicas=1
+      --set operator.prometheus.enabled=true \
+      --set operator.prometheus.serviceMonitor.enabled=true \
+      --set operator.replicas=1 \
+      --set prometheus.enabled=true \
+      --set prometheus.serviceMonitor.enabled=true
     echo "waiting for kube-system daemonset.apps/cilium"
     kubectl --context "$context" -n kube-system rollout status -w --timeout=300s daemonset/cilium
 esac
@@ -379,32 +387,16 @@ sed "s/{{ .Values.domain1 }}/$proxy_host/g" ./manifests/kubernetes-dashboard-pos
   | sed "s/{{ .Values.domain2 }}/$host_domain/g" \
   | kubectl --context "$context" apply -f -
 
-# prometheus
-helm upgrade --install prometheus ./manifests/prometheus \
+# kube prometheus stack
+helm upgrade --install prometheus-operator ./manifests/kube-prometheus-stack \
+  -f ./manifests/kube-prometheus-stack.yaml \
   --kube-context "$context" \
   --create-namespace \
-  --namespace prometheus
-
-# grafana
-helm upgrade --install grafana ./manifests/grafana \
-  --kube-context "$context" \
-  --namespace prometheus \
-  --set datasources."datasources\.yaml".apiVersion=1 \
-  --set datasources."datasources\.yaml".datasources[0].name=Prometheus \
-  --set datasources."datasources\.yaml".datasources[0].type=prometheus \
-  --set datasources."datasources\.yaml".datasources[0].url=http://prometheus-server.prometheus.svc.cluster.local \
-  --set datasources."datasources\.yaml".datasources[0].isDefault=true \
-  --set ingress.annotations."cert-manager\.io/cluster-issuer"="k3d-tls-issuer" \
-  --set ingress.annotations."nginx\.ingress\.kubernetes\.io/force-ssl-redirect"="'true'" \
-  --set ingress.enabled=true \
-  --set ingress.hosts[0]="grafana.k3s.localhost" \
-  --set ingress.hosts[1]="grafana.$proxy_host" \
-  --set ingress.hosts[2]="grafana.$host_domain" \
-  --set ingress.tls[0].hosts[0]="grafana.k3s.localhost" \
-  --set ingress.tls[0].hosts[1]="grafana.$proxy_host" \
-  --set ingress.tls[0].hosts[2]="grafana.$host_domain" \
-  --set ingress.tls[0].secretName="tls-cert" \
-  --set persistence.enabled=true
+  --namespace monitoring \
+  --set grafana.ingress.hosts[1]="grafana.$proxy_host" \
+  --set grafana.ingress.hosts[2]="grafana.$host_domain" \
+  --set grafana.ingress.tls[0].hosts[1]="grafana.$proxy_host" \
+  --set grafana.ingress.tls[0].hosts[2]="grafana.$host_domain"
 
 # print endpoints
 cat <<YML
@@ -423,7 +415,7 @@ fi
 cat <<YML
 
 grafana:
-  password: $(kubectl --context "$context" -n prometheus get secret grafana -o jsonpath="{.data.admin-password}" | base64 --decode)
+  password: $(kubectl --context "$context" -n monitoring get secret prometheus-operator-grafana -o jsonpath="{.data.admin-password}" | base64 --decode)
   urls:
     - https://grafana.$proxy_host/
 YML
