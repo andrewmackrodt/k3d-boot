@@ -8,6 +8,7 @@ including:
 - [Grafana](https://github.com/grafana/grafana) visualize metrics, logs, and traces
 - [Ingress-NGINX](https://github.com/kubernetes/ingress-nginx) ingress controller for Kubernetes using NGINX
 - [Kubernetes Dashboard](https://github.com/kubernetes/dashboard) general-purpose web UI for Kubernetes
+- [Loki](https://github.com/grafana/loki) log aggregation system
 - [MetalLB](https://github.com/metallb/metallb) network load-balancer implementation
 - [Prometheus](https://github.com/prometheus/prometheus) monitoring system and time series database
 

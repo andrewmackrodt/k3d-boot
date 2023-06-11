@@ -2,6 +2,8 @@ manifests/cert-manager/** linguist-vendored
 manifests/cilium/** linguist-vendored
 manifests/ingress-nginx/** linguist-vendored
 manifests/kube-prometheus-stack/** linguist-vendored
+manifests/loki/** linguist-vendored
+manifests/promtail/** linguist-vendored
 manifests/calico.yaml linguist-vendored
 manifests/kubernetes-dashboard.yaml linguist-vendored
 manifests/metallb-native.yaml linguist-vendored
