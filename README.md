@@ -3,7 +3,7 @@
 Linux and macOS script to create a k3d (k3s in docker) cluster for development
 including:
 
-- [Calico](https://github.com/cilium/cilium) networking and network security solution for Kubernetes
+- [Cilium](https://github.com/cilium/cilium) eBPF-based networking, security, and observability
 - [Ingress-NGINX](https://github.com/kubernetes/ingress-nginx) ingress controller for Kubernetes using NGINX
 - [Kubernetes Dashboard](https://github.com/kubernetes/dashboard) general-purpose web UI for Kubernetes
 - [MetalLB](https://github.com/metallb/metallb) network load-balancer implementation
@@ -42,7 +42,7 @@ Usage:
 
 Options:
   -n, --cluster-name <>        cluster name (default: "default")
-  -c, --cni <>                 cni plugin: "calico" | "flannel" (default: "calico")
+  -c, --cni <>                 cni plugin: "cilium" | "calico" | "flannel" (default: "cilium")
   -l, --load-balancer <>       load balancer implementation: "metallb" | "servicelb" (default: "metallb")
   -a, --api-port <>            server api port (default: 6443)
   -P, --proxy-protocol         enable proxy protocol for ingress communication
@@ -67,3 +67,7 @@ The token for the dashboard can be created by running `kubectl -n kubernetes-das
 To access the dashboard visit https://console.k3s.localhost:8443/#login.
 
 Alternatively, use `kubectl proxy` and visit http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/#login.
+
+### Hubble
+
+Use `kubectl port-forward`, e.g. `kubectl -n kube-system port-forward service/hubble-ui 8081:80` would make the service available at http://localhost:8081.

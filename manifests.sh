@@ -36,6 +36,7 @@ helm_download() {
   helm pull "$chart" --untar
 }
 
+helm_download "https://helm.cilium.io/" cilium
 curl_download "https://k3d.io/v5.4.3/usage/advanced/calico.yaml" calico.yaml
 patch calico.yaml calico.patch
 curl_download "https://raw.githubusercontent.com/metallb/metallb/v0.13.9/config/manifests/metallb-native.yaml" metallb-native.yaml
