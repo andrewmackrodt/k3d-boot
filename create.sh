@@ -9,7 +9,7 @@ cluster_name=""
 params+=( cluster_name )
 required_params+=( cluster_name )
 
-default_cni="calico"
+default_cni="cilium"
 cni=""
 params+=( cni )
 required_params+=( cni )
@@ -69,7 +69,7 @@ Usage:
 
 Options:
   -n, --cluster-name <>        cluster name (default: "$default_cluster_name")
-  -c, --cni <>                 cni plugin: "calico" | "flannel" (default: "$default_cni")
+  -c, --cni <>                 cni plugin: "cilium" | "calico" | "flannel" (default: "$default_cni")
   -l, --load-balancer <>       load balancer implementation: "metallb" | "servicelb" (default: "$default_load_balancer")
   -a, --api-port <>            server api port (default: $default_api_port)
   -P, --proxy-protocol         enable proxy protocol for ingress communication
@@ -151,6 +151,10 @@ if ! k3d cluster list "$cluster_name" >/dev/null 2>&1; then
     cluster_create_extra_args+=( --k3s-arg '--disable-network-policy@server:*' )
     cluster_create_extra_args+=( --k3s-arg '--flannel-backend=none@server:*' )
   fi
+  if [[ "$cni" == "cilium" ]]; then
+    cluster_create_extra_args+=( -v "$PWD/scripts/k3d-entrypoint-cilium.sh:/bin/k3d-entrypoint-cilium.sh:ro@server:*" )
+    cluster_create_extra_args+=( -v "$PWD/scripts/k3d-entrypoint-cilium.sh:/bin/k3d-entrypoint-cilium.sh:ro@agent:*" )
+  fi
   if [[ "$load_balancer" != "servicelb" ]] && [[ "$load_balancer" != "klipper" ]]; then
     cluster_create_extra_args+=( --k3s-arg '--disable=servicelb@server:*' )
   fi
@@ -179,6 +183,18 @@ case "$cni" in
     echo "waiting for kube-system deployment.apps/calico-kube-controllers"
     kubectl --context "$context" -n kube-system wait deployment calico-kube-controllers --for condition=Available=True --timeout=300s
     ;;
+  cilium )
+    helm upgrade --install cilium ./manifests/cilium \
+      --kube-context "$context" \
+      --create-namespace \
+      --namespace kube-system \
+      --set hubble.enabled=true \
+      --set hubble.metrics.enabled="{dns,drop,tcp,flow,icmp,http}" \
+      --set hubble.relay.enabled=true \
+      --set hubble.ui.enabled=true \
+      --set operator.replicas=1
+    echo "waiting for kube-system daemonset.apps/cilium"
+    kubectl --context "$context" -n kube-system rollout status -w --timeout=300s daemonset/cilium
 esac
 
 # load balancer
