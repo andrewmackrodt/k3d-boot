@@ -156,6 +156,19 @@ if ! which kubectl >/dev/null 2>&1; then
   install_kubectl
 fi
 
+if [[ "$platform" == "linux" ]]; then
+  inotify_max_user_instances=$(cat /proc/sys/fs/inotify/max_user_instances)
+  if [[ "$inotify_max_user_instances" -lt 512 ]]; then
+    echo "warning: inotify.max_user_instances should be increased, e.g." >&2
+    echo "warning: echo 'fs.inotify.max_user_instances=512' | sudo tee -a /etc/sysctl.conf" >&2
+  fi
+  inotify_max_user_instances=$(cat /proc/sys/fs/inotify/max_user_watches)
+  if [[ "$inotify_max_user_instances" -lt 65536 ]]; then
+    echo "warning: inotify.max_user_instances should be increased, e.g." >&2
+    echo "warning: echo 'fs.inotify.max_user_watches=65536' | sudo tee -a /etc/sysctl.conf" >&2
+  fi
+fi
+
 print_params
 
 trap 'error_reporter $LINENO' ERR
@@ -397,6 +410,20 @@ helm upgrade --install prometheus-operator ./manifests/kube-prometheus-stack \
   --set grafana.ingress.hosts[2]="grafana.$host_domain" \
   --set grafana.ingress.tls[0].hosts[1]="grafana.$proxy_host" \
   --set grafana.ingress.tls[0].hosts[2]="grafana.$host_domain"
+
+# loki
+helm upgrade --install loki ./manifests/loki \
+  --kube-context "$context" \
+  --namespace monitoring \
+  --set loki.auth_enabled=false \
+  --set loki.commonConfig.replication_factor=1 \
+  --set loki.storage.type=filesystem \
+  --set singleBinary.replicas=1
+
+# promtail
+helm upgrade --install promtail ./manifests/promtail \
+  --kube-context "$context" \
+  --namespace monitoring
 
 # print endpoints
 cat <<YML
