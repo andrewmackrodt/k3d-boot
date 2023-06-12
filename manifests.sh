@@ -40,3 +40,4 @@ curl_download "https://k3d.io/v5.4.3/usage/advanced/calico.yaml" calico.yaml
 patch calico.yaml calico.patch
 curl_download "https://raw.githubusercontent.com/metallb/metallb/v0.13.9/config/manifests/metallb-native.yaml" metallb-native.yaml
 helm_download "https://kubernetes.github.io/ingress-nginx/" ingress-nginx
+curl_download "https://raw.githubusercontent.com/kubernetes/dashboard/v2.7.0/aio/deploy/recommended.yaml" kubernetes-dashboard.yaml
