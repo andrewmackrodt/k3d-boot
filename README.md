@@ -10,6 +10,7 @@ including:
 - [Kubernetes Dashboard](https://github.com/kubernetes/dashboard) general-purpose web UI for Kubernetes
 - [Loki](https://github.com/grafana/loki) log aggregation system
 - [MetalLB](https://github.com/metallb/metallb) network load-balancer implementation
+- [OpenFaaS](https://github.com/openfaas/faas) serverless functions made simple
 - [Prometheus](https://github.com/prometheus/prometheus) monitoring system and time series database
 
 ## Requirements
@@ -107,3 +108,11 @@ Use `kubectl port-forward`, e.g. `kubectl -n monitoring port-forward service/pro
 ### Alertmanager
 
 Use `kubectl port-forward`, e.g. `kubectl -n monitoring port-forward service/prometheus-operator-alertmanager 9093:9093` would make the service available at http://localhost:9093/#/alerts.
+
+### OpenFaaS
+
+The password can be retrieved by running `kubectl -n openfaas get secret basic-auth -o jsonpath="{.data.basic-auth-password}" | base64 --decode`.
+
+To access the ui visit https://fns.k3s.localhost:8443/ui/.
+
+Alternatively, use `kubectl port-forward`, e.g. `kubectl -n openfaas port-forward service/gateway 5000:8080` would make the service available at http://localhost:5000/ui/.

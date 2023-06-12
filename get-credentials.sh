@@ -85,3 +85,15 @@ if [[ "$proxy_tls_port" != "" ]]; then
     - https://grafana.$host_domain:$proxy_tls_port/
 YML
 fi
+cat <<YML
+
+openfaas:
+  password: $(kubectl --context "$context" -n openfaas get secret basic-auth -o jsonpath="{.data.basic-auth-password}" | base64 --decode)
+  urls:
+    - https://fns.$proxy_host/ui/
+YML
+if [[ "$proxy_tls_port" != "" ]]; then
+  cat <<YML
+    - https://fns.$host_domain:$proxy_tls_port/ui/
+YML
+fi
