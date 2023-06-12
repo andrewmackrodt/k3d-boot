@@ -425,6 +425,21 @@ helm upgrade --install promtail ./manifests/promtail \
   --kube-context "$context" \
   --namespace monitoring
 
+# openfaas
+kubectl --context "$context" apply -f ./manifests/openfaas-namespaces.yaml
+
+helm upgrade --install openfaas ./manifests/openfaas \
+  -f ./manifests/openfaas.yaml \
+  --kube-context "$context" \
+  --namespace openfaas \
+  --set faasnetes.image="ghcr.io/openfaas/faas-netes:0.17.1" \
+  --set gateway.image="ghcr.io/openfaas/gateway:0.27.2" \
+  --set queueWorker.image="ghcr.io/openfaas/queue-worker:0.14.0" \
+  --set ingress.hosts[1].host="fns.$proxy_host" \
+  --set ingress.hosts[2].host="fns.$host_domain" \
+  --set ingress.tls[0].hosts[1]="fns.$proxy_host" \
+  --set ingress.tls[0].hosts[2]="fns.$host_domain"
+
 # print endpoints
 cat <<YML
 
@@ -449,5 +464,17 @@ YML
 if [[ "$proxy_tls_port" != "" ]]; then
   cat <<YML
     - https://grafana.$host_domain:$proxy_tls_port/
+YML
+fi
+cat <<YML
+
+openfaas:
+  password: $(kubectl --context "$context" -n openfaas get secret basic-auth -o jsonpath="{.data.basic-auth-password}" | base64 --decode)
+  urls:
+    - https://fns.$proxy_host/ui/
+YML
+if [[ "$proxy_tls_port" != "" ]]; then
+  cat <<YML
+    - https://fns.$host_domain:$proxy_tls_port/ui/
 YML
 fi

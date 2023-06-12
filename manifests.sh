@@ -46,3 +46,5 @@ curl_download "https://raw.githubusercontent.com/kubernetes/dashboard/v2.7.0/aio
 helm_download "https://prometheus-community.github.io/helm-charts/" prometheus-community/kube-prometheus-stack
 helm_download "https://grafana.github.io/helm-charts/" grafana/loki
 helm_download "https://grafana.github.io/helm-charts/" grafana/promtail
+curl_download "https://raw.githubusercontent.com/openfaas/faas-netes/0.17.2/namespaces.yml" openfaas-namespaces.yaml
+helm_download "https://openfaas.github.io/faas-netes/" openfaas

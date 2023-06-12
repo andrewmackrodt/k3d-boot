@@ -1,0 +1,25 @@
+---
+functionNamespace: openfaas-fn
+generateBasicAuth: true
+
+ingress:
+  enabled: true
+  annotations:
+    cert-manager.io/cluster-issuer: k3d-tls-issuer
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+  hosts:
+    - host: fns.k3s.localhost
+      serviceName: gateway
+      servicePort: 8080
+    - host: fns.k3s.localhost  # replaced using helm --set
+      serviceName: gateway
+      servicePort: 8080
+    - host: fns.k3s.localhost  # replaced using helm --set
+      serviceName: gateway
+      servicePort: 8080
+  tls:
+    - secretName: tls-cert
+      hosts:
+        - fns.k3s.localhost
+        - fns.k3s.localhost  # replaced using helm --set
+        - fns.k3s.localhost  # replaced using helm --set

@@ -1,0 +1,135 @@
+{{- $functionNs := default .Release.Namespace .Values.functionNamespace }}
+{{- if .Values.iam.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: {{ template "openfaas.name" . }}
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    component: oidc-plugin
+    heritage: {{ .Release.Service }}
+    release: {{ .Release.Name }}
+  name: oidc-plugin
+  namespace: {{ .Release.Namespace | quote }}
+spec:
+  replicas: {{ .Values.oidcAuthPlugin.replicas }}
+  selector:
+    matchLabels:
+      app: oidc-plugin
+  template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: "false"
+      labels:
+        app: oidc-plugin
+    spec:
+      serviceAccountName: oidc-plugin
+      volumes:
+      - name: oidc-plugin-temp-volume
+        emptyDir: {}
+      - name: issuer-key
+        secret:
+          secretName: issuer-key
+      {{- if .Values.basic_auth }}
+      - name: auth
+        secret:
+          secretName: basic-auth
+      {{- end }}
+      - name: license
+        secret:
+          secretName: openfaas-license
+      containers:
+      - name:  oidc-plugin
+        resources:
+          {{- .Values.oidcAuthPlugin.resources | toYaml | nindent 12 }}
+        image: {{ .Values.oidcAuthPlugin.image }}
+        imagePullPolicy: Always
+        {{- if .Values.securityContext }}
+        securityContext:
+          readOnlyRootFilesystem: true
+          runAsUser: 10001
+        {{- end }}
+        livenessProbe:
+          {{- if .Values.httpProbe }}
+          httpGet:
+            path: /health
+            port: 8080
+          {{- else }}
+          exec:
+            command:
+            - wget
+            - --quiet
+            - --tries=1
+            - --timeout=5
+            - --spider
+            - http://localhost:8080/health
+          {{- end }}
+          timeoutSeconds: 5
+        readinessProbe:
+          {{- if .Values.httpProbe }}
+          httpGet:
+            path: /health
+            port: 8080
+          {{- else }}
+          exec:
+            command:
+            - wget
+            - --quiet
+            - --tries=1
+            - --timeout=5
+            - --spider
+            - http://localhost:8080/health
+          {{- end }}
+          timeoutSeconds: 5
+        args:
+        - "-license-file=/var/secrets/license/license"
+        {{- if .Values.oidcAuthPlugin.verbose }}
+        - "-verbose=true"
+        {{- end }}
+        env:
+        - name: base_host
+          value: "{{- .Values.iam.systemIssuer.url}}"
+        - name: port
+          value: "8080"
+        - name: insecure_tls
+          value: "{{- .Values.oidcAuthPlugin.insecureTLS}}"
+        - name: issuer_key_path
+          value: "/var/secrets/issuer-key/issuer.key"
+        {{- if .Values.basic_auth }}
+        - name: secret_mount_path
+          value: "/var/secrets/gateway"
+        {{- end }}
+        volumeMounts:
+        - name: oidc-plugin-temp-volume
+          mountPath: /tmp
+        - name: issuer-key
+          readOnly: true
+          mountPath: "/var/secrets/issuer-key"
+        {{- if .Values.basic_auth }}
+        - name: auth
+          readOnly: true
+          mountPath: "/var/secrets/gateway"
+        {{- end }}
+        - name: license
+          readOnly: true
+          mountPath: "/var/secrets/license"
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+
+    {{- with .Values.nodeSelector }}
+      nodeSelector:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+    {{- with .Values.affinity }}
+      affinity:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+    {{- with .Values.tolerations }}
+      tolerations:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+
+{{- end }}
