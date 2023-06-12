@@ -306,3 +306,30 @@ proxy_name="${context}-proxy"
 docker rm -f "$proxy_name" 2>/dev/null || true
 docker create --name "$proxy_name" --restart=always --network="$context" "${proxy_args[@]}" nginx "${proxy_command[@]}"
 docker start "$proxy_name"
+
+# determine host ip address
+host_ip=$(ifconfig | perl -0777 -pe 's/\n+^[ \t]/ /gm' | grep 'inet ' | grep RUNNING | grep -v LOOPBACK \
+  | sed -nE 's/.* inet ([^ ]+).*/\1/p' | grep -vE '\.1$')
+
+host_domain="${sslip_prefix}-${host_ip//./-}.sslip.io"
+
+# kubernetes dashboard
+kubectl --context "$context" apply -f ./manifests/kubernetes-dashboard.yaml
+sed "s/{{ .Values.domain1 }}/$proxy_host/g" ./manifests/kubernetes-dashboard-postinst.yaml\
+  | sed "s/{{ .Values.domain2 }}/$host_domain/g" \
+  | kubectl --context "$context" apply -f -
+
+# print endpoints
+cat <<YML
+
+---
+dashboard:
+  token: $(kubectl --context "$context" -n kubernetes-dashboard create token admin-user)
+  urls:
+    - https://console.$proxy_host/#login
+YML
+if [[ "$proxy_tls_port" != "" ]]; then
+  cat <<YML
+    - https://console.$host_domain:$proxy_tls_port/#login
+YML
+fi
