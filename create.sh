@@ -9,6 +9,11 @@ cluster_name=""
 params+=( cluster_name )
 required_params+=( cluster_name )
 
+default_cluster_id=0
+cluster_id=""
+params+=( cluster_id )
+required_params+=( cluster_id )
+
 default_cni="cilium"
 cni=""
 params+=( cni )
@@ -69,6 +74,7 @@ Usage:
 
 Options:
   -n, --cluster-name <>        cluster name (default: "$default_cluster_name")
+  -i, --cluster-id <>          cilium cluster id: 1..255 (default: "$default_cluster_id")
   -c, --cni <>                 cni plugin: "cilium" | "calico" | "flannel" (default: "$default_cni")
   -l, --load-balancer <>       load balancer implementation: "metallb" | "servicelb" (default: "$default_load_balancer")
   -a, --api-port <>            server api port (default: $default_api_port)
@@ -89,6 +95,7 @@ get_params() {
     [[ $1 == --*=* ]] && set -- "${1%%=*}" "${1#*=}" "${@:2}"
     case "$1" in
       -n | --cluster-name ) set_param_once cluster_name "$@"; shift ;;
+      -i | --cluster-id ) set_param_once cluster_id "$@"; shift ;;
       -c | --cni ) set_param_once cni "$@"; shift ;;
       -l | --load-balancer ) set_param_once load_balancer "$@"; shift ;;
       -a | --api-port ) set_param_once api_port "$@"; shift ;;
@@ -111,6 +118,15 @@ get_params() {
 _set_default_params() {
   if [[ "$proxy_service" == "$default_proxy_service" ]]; then
     proxy_service="k3s-${cluster_name}"
+  fi
+}
+
+_validate_params() {
+  if ! echo "$cluster_id" | grep -qE '^(0|[1-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])$'; then
+    exit_with_usage_error "--cluster-id must be between 1 and 255"
+  fi
+  if [[ $cluster_id -gt 0 ]] && [[ "$cni" != "cilium" ]]; then
+    exit_with_error 'usage of --cluster-id without --cni="cilium" is invalid'
   fi
 }
 
@@ -184,14 +200,28 @@ case "$cni" in
     kubectl --context "$context" -n kube-system wait deployment calico-kube-controllers --for condition=Available=True --timeout=300s
     ;;
   cilium )
+    if [[ $cluster_id -gt 0 ]]; then
+      useAPIServer="true"
+      identityAllocationMode="kvstore"
+      clusterPoolIPv4PodCIDR="10.${cluster_id}.0.0/16"
+    else
+      useAPIServer="false"
+      identityAllocationMode="crd"
+      clusterPoolIPv4PodCIDR="10.0.0.0/8"
+    fi
     helm upgrade --install cilium ./manifests/cilium \
       --kube-context "$context" \
       --create-namespace \
       --namespace kube-system \
+      --set cluster.name="$cluster_name" \
+      --set cluster.id="$cluster_id" \
+      --set clustermesh.useAPIServer="$useAPIServer" \
       --set hubble.enabled=true \
       --set hubble.metrics.enabled="{dns,drop,tcp,flow,icmp,http}" \
       --set hubble.relay.enabled=true \
       --set hubble.ui.enabled=true \
+      --set identityAllocationMode="$identityAllocationMode" \
+      --set ipam.operator.clusterPoolIPv4PodCIDRList[0]="$clusterPoolIPv4PodCIDR" \
       --set operator.replicas=1
     echo "waiting for kube-system daemonset.apps/cilium"
     kubectl --context "$context" -n kube-system rollout status -w --timeout=300s daemonset/cilium

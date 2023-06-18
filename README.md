@@ -42,6 +42,7 @@ Usage:
 
 Options:
   -n, --cluster-name <>        cluster name (default: "default")
+  -i, --cluster-id <>          cilium cluster id: 1..255 (default: 0)
   -c, --cni <>                 cni plugin: "cilium" | "calico" | "flannel" (default: "cilium")
   -l, --load-balancer <>       load balancer implementation: "metallb" | "servicelb" (default: "metallb")
   -a, --api-port <>            server api port (default: 6443)
@@ -57,6 +58,21 @@ Options:
 ```
 
 To delete the cluster, run `./destroy.sh`.
+
+## Advanced Configuration
+
+### Cilium Multi-Cluster (Cluster Mesh)
+
+The Cilium CNI plugin (`--cni="cilium"`) supports creating a cluster mesh:
+
+> Cluster mesh extends the networking datapath across multiple clusters.
+> It allows endpoints in all connected clusters to communicate while providing full policy enforcement.
+> Load-balancing is available via Kubernetes annotations.
+
+To create a cluster capable of joining a mesh, pass `--cluster-id <>` as an argument to `./create.sh`. Each cluster
+**must** have a unique ID between 1 and 255. `cilium-cli` is required to connect the clusters together and additional
+network configuration/bridging must be performed to allow traffic between the otherwise isolated docker networks.
+See [./clustermesh.sh](clustermesh.sh) for an example of creating a 2 cluster mesh.
 
 ## Services
 
