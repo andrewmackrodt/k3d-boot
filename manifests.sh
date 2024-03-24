@@ -36,15 +36,16 @@ helm_download() {
   helm pull "$chart" --untar
 }
 
+helm repo update
 helm_download "https://helm.cilium.io/" cilium
-curl_download "https://k3d.io/v5.4.3/usage/advanced/calico.yaml" calico.yaml
+curl_download "https://k3d.io/v5.6.0/usage/advanced/calico.yaml" calico.yaml
 patch calico.yaml calico.patch
-curl_download "https://raw.githubusercontent.com/metallb/metallb/v0.13.9/config/manifests/metallb-native.yaml" metallb-native.yaml
+curl_download "https://raw.githubusercontent.com/metallb/metallb/v0.14.3/config/manifests/metallb-native.yaml" metallb-native.yaml
 helm_download "https://kubernetes.github.io/ingress-nginx/" ingress-nginx
 helm_download "https://charts.jetstack.io" jetstack/cert-manager
 curl_download "https://raw.githubusercontent.com/kubernetes/dashboard/v2.7.0/aio/deploy/recommended.yaml" kubernetes-dashboard.yaml
 helm_download "https://prometheus-community.github.io/helm-charts/" prometheus-community/kube-prometheus-stack
 helm_download "https://grafana.github.io/helm-charts/" grafana/loki
 helm_download "https://grafana.github.io/helm-charts/" grafana/promtail
-curl_download "https://raw.githubusercontent.com/openfaas/faas-netes/0.17.2/namespaces.yml" openfaas-namespaces.yaml
+curl_download "https://raw.githubusercontent.com/openfaas/faas-netes/0.18.3/namespaces.yml" openfaas-namespaces.yaml
 helm_download "https://openfaas.github.io/faas-netes/" openfaas

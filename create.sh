@@ -213,7 +213,7 @@ case "$cni" in
     kubectl --context "$context" -n kube-system wait deployment calico-kube-controllers --for condition=Available=True --timeout=300s
     ;;
   cilium )
-    kubectl --context "$context" apply -f ./manifests/kube-prometheus-stack/crds/crd-servicemonitors.yaml
+    kubectl --context "$context" apply -f ./manifests/kube-prometheus-stack/charts/crds/crds/crd-servicemonitors.yaml
     if [[ $cluster_id -gt 0 ]]; then
       useAPIServer="true"
       identityAllocationMode="kvstore"
@@ -432,9 +432,6 @@ helm upgrade --install openfaas ./manifests/openfaas \
   -f ./manifests/openfaas.yaml \
   --kube-context "$context" \
   --namespace openfaas \
-  --set faasnetes.image="ghcr.io/openfaas/faas-netes:0.17.1" \
-  --set gateway.image="ghcr.io/openfaas/gateway:0.27.2" \
-  --set queueWorker.image="ghcr.io/openfaas/queue-worker:0.14.0" \
   --set ingress.hosts[1].host="fns.$proxy_host" \
   --set ingress.hosts[2].host="fns.$host_domain" \
   --set ingress.tls[0].hosts[1]="fns.$proxy_host" \

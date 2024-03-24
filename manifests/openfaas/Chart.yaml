@@ -12,11 +12,9 @@ maintainers:
   name: alexellis
 - email: han@openfaas.com
   name: welteki
-- email: roesler.lucas@gmail.com
-  name: lucasroesler
 name: openfaas
 sources:
 - https://github.com/openfaas/faas
 - https://github.com/openfaas/faas-netes
 type: application
-version: 13.1.0
+version: 14.2.31

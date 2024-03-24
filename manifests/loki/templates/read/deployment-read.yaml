@@ -9,6 +9,7 @@ metadata:
   labels:
     app.kubernetes.io/part-of: memberlist
     {{- include "loki.readLabels" . | nindent 4 }}
+  {{- if or (not (empty .Values.loki.annotations)) (not (empty .Values.backend.annotations))}}
   annotations:
     {{- with .Values.loki.annotations }}
     {{- toYaml . | nindent 4 }}
@@ -16,6 +17,7 @@ metadata:
     {{- with .Values.read.annotations }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
+  {{- end }}
 spec:
   {{- if not .Values.read.autoscaling.enabled }}
   replicas: {{ .Values.read.replicas }}
@@ -69,16 +71,16 @@ spec:
             - -config.file=/etc/loki/config/config.yaml
             - -target={{ .Values.read.targetModule }}
             - -legacy-read-mode=false
-            - -common.compactor-grpc-address={{ include "loki.backendFullname" . }}.{{ .Release.Namespace }}.svc.{{ .Values.global.clusterDomain }}:9095
+            - -common.compactor-grpc-address={{ include "loki.backendFullname" . }}.{{ .Release.Namespace }}.svc.{{ .Values.global.clusterDomain }}:{{ .Values.loki.server.grpc_listen_port }}
             {{- with .Values.read.extraArgs }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
           ports:
             - name: http-metrics
-              containerPort: 3100
+              containerPort: {{ .Values.loki.server.http_listen_port }}
               protocol: TCP
             - name: grpc
-              containerPort: 9095
+              containerPort: {{ .Values.loki.server.grpc_listen_port }}
               protocol: TCP
             - name: http-memberlist
               containerPort: 7946
@@ -113,12 +115,23 @@ spec:
             {{- end }}
           resources:
             {{- toYaml .Values.read.resources | nindent 12 }}
+        {{- with .Values.read.extraContainers }}
+        {{- toYaml . | nindent 8}}
+        {{- end }}
       {{- with .Values.read.affinity }}
       affinity:
         {{- tpl . $ | nindent 8 }}
       {{- end }}
+      {{- with .Values.read.dnsConfig }}
+      dnsConfig:
+        {{- tpl . $ | nindent 8 }}
+      {{- end }}
       {{- with .Values.read.nodeSelector }}
       nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.read.topologySpreadConstraints }}
+      topologySpreadConstraints:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       {{- with .Values.read.tolerations }}

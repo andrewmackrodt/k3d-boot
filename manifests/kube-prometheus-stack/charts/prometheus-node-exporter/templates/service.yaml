@@ -1,3 +1,4 @@
+{{- if .Values.service.enabled }}
 apiVersion: v1
 kind: Service
 metadata:
@@ -5,19 +6,15 @@ metadata:
   namespace: {{ include "prometheus-node-exporter.namespace" . }}
   labels:
     {{- include "prometheus-node-exporter.labels" $ | nindent 4 }}
-  {{- if or .Values.prometheus.monitor.enabled .Values.prometheus.podMonitor.enabled }}
   {{- with .Values.service.annotations }}
   annotations:
-    {{- unset . "prometheus.io/scrape" | toYaml | nindent 4 }}
-  {{- end }}
-  {{- else }}
-  annotations:
-    prometheus.io/scrape: "true"
-  {{- with .Values.service.annotations }}
     {{- toYaml . | nindent 4 }}
   {{- end }}
-  {{- end }}
 spec:
+{{- if .Values.service.ipDualStack.enabled }}
+  ipFamilies: {{ toYaml .Values.service.ipDualStack.ipFamilies | nindent 4 }}
+  ipFamilyPolicy: {{ .Values.service.ipDualStack.ipFamilyPolicy }}
+{{- end }}
   type: {{ .Values.service.type }}
   ports:
     - port: {{ .Values.service.port }}
@@ -29,3 +26,4 @@ spec:
       name: {{ .Values.service.portName }}
   selector:
     {{- include "prometheus-node-exporter.selectorLabels" . | nindent 4 }}
+{{- end }}

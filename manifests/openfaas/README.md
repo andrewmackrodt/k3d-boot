@@ -187,7 +187,9 @@ echo "OpenFaaS admin password: $PASSWORD"
 
 #### Tuning function cold-starts
 
-The concept of a cold-start in OpenFaaS only applies if you A) use faas-idler and B) set a specific function to [scale to zero](https://docs.openfaas.com/openfaas-pro/scale-to-zero/). Otherwise there is not a cold-start, because at least one replica of your function remains available.
+The concept of a cold-start in OpenFaaS only applies if you enable it for a specific function, using [scale to zero](https://docs.openfaas.com/openfaas-pro/scale-to-zero/). Otherwise there is not a cold-start, because at least one replica of your function remains available.
+
+See also: [Fine-tuning the cold-start in OpenFaaS](https://www.openfaas.com/blog/fine-tuning-the-cold-start/)
 
 There are two ways to reduce the Kubernetes cold-start for a pre-pulled image, which is around 1-2 seconds.
 
@@ -195,36 +197,37 @@ There are two ways to reduce the Kubernetes cold-start for a pre-pulled image, w
 2) Use async invocations via the `/async-function/<name>` route on the gateway, so that the latency is hidden from the caller
 3) Tune the readinessProbes to be aggressively low values. This will reduce the cold-start at the cost of more `kubelet` CPU usage
 
-To achieve around 1s coldstart, set `values.yaml`:
+To achieve a coldstart of between 0.7 and 1.9s, set the following in `values.yaml`:
 
 ```yaml
-faasnetes:
-
-# redacted
+functions:
+  imagePullPolicy: "IfNotPresent"
+...
   readinessProbe:
     initialDelaySeconds: 0
     timeoutSeconds: 1
     periodSeconds: 1
+    successThreshold: 1
+    failureThreshold: 3
   livenessProbe:
     initialDelaySeconds: 0
     timeoutSeconds: 1
     periodSeconds: 1
-# redacted
-  imagePullPolicy: "IfNotPresent"    # Image pull policy for deployed functions
+    failureThreshold: 3
 ```
 
 In addition:
 
 * Pre-pull images on each node
 * Use an in-cluster registry to reduce the pull latency for images
-* Set the `imagePullPolicy` to `IfNotPresent` so that the `kubelet` only pulls images which are not already available
+* Set the `functions.imagePullPolicy` to `IfNotPresent` so that the `kubelet` only pulls images which are not already available
 * Explore alternatives such as not scaling to absolute zero, and using async calls which do not show the cold start
 
-For OpenFaaS CE, both liveness and readiness probes are set to:
+For OpenFaaS CE, both liveness and readiness probes are set to, and the `PullPolicy` for functions is set to `Always`:
 
 * `initialDelaySeconds: 2`
-* `timeoutSeconds: 1`
 * `periodSeconds: 2`
+* `timeoutSeconds: 1`
 
 ### Verify the installation
 
@@ -380,17 +383,15 @@ Scaling up from zero replicas is enabled by default, to turn it off set `scaleFr
 
 ### Scale-down to zero (off by default)
 
-Scaling down to zero replicas can be achieved either through the REST API and your own controller, or by using the faas-idler component. This is an OpenFaaS Pro feature and an effective way to save costs on your infrastructure costs.
+Scaling to zero is managed by the OpenFaaS Standard autoscaler, which:
 
-OpenFaaS Pro will only scale down functions which have marked themselves as eligible for this behaviour through the use of a label: `com.openfaas.scale.zero=true`.
+* can save on infrastructure costs
+* helps to reduce the attack surface of your application
+* mitigates against functions which use high CPU or memory at idle, or which contain leaks
+
+OpenFaaS Pro will only scale down functions which have marked themselves as eligible for this behaviour through the use of a label: `com.openfaas.scale.zero=true`. The time to wait until scaling a specific function to zero is controlled by: `com.openfaas.scale.zero-duration` which is a Go duration set in minutes i.e. `15m`.
 
 See also: [Scale to Zero docs](https://docs.openfaas.com/openfaas-pro/scale-to-zero/).
-
-Check the logs with:
-
-```bash
-kubectl logs -n openfaas deploy/faas-idler
-```
 
 ## Removing the OpenFaaS
 
@@ -416,7 +417,11 @@ Note that OpenFaaS itself may support a wider range of versions, [see here](../.
 
 ## Getting help
 
-Feel free to seek out help using the [OpenFaaS Slack workspace](https://slack.openfaas.io/), please do not raise issues for technical support, unless you suspect and can provide instructions for reproducing an error in the chart.
+Comprehensive documentation is offered in the [OpenFaaS docs](https://docs.openfaas.com/).
+
+For technical support and questions, join the [Weekly Office Hours call](https://docs.openfaas.com/community)
+
+For suspected bugs, feel free to raise an issue. If you do not fill out the whole issue template, or delete the template, it's unlikely that you'll get the help that you're looking for.
 
 ## Configuration
 
@@ -437,6 +442,7 @@ yaml) |
 | `basicAuthPlugin.image` | Container image used for basic-auth-plugin | See [values.yaml](./values.yaml) |
 | `basicAuthPlugin.replicas` | Replicas of the basic-auth-plugin | `1` |
 | `basicAuthPlugin.resources` | Resource limits and requests for basic-auth-plugin containers | See [values.yaml](./values.yaml) |
+| `caBundleSecretName` | Name of the Kubernetes secret that contains the CA bundle for making HTTP requests for IAM (optional) | `""` |
 | `clusterRole` | Use a `ClusterRole` for the Operator or faas-netes. Set to `true` for multiple namespace, pro scaler and CPU/RAM metrics in OpenFaaS REST API | `false` |
 | `createCRDs` | Create the CRDs for OpenFaaS Functions and Profiles | `true` |
 | `exposeServices` | Expose `NodePorts/LoadBalancer`  | `true` |
@@ -450,9 +456,10 @@ yaml) |
 | `nodeSelector` | Global [NodeSelector](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/) | `{}` |
 | `openfaasImagePullPolicy` | Image pull policy for openfaas components, can change to `IfNotPresent` in offline env | `Always` |
 | `openfaasPro` | Deploy OpenFaaS Pro | `false` |
+| `oem` | Deploy OpenFaaS oem | `false` |
 | `psp` | Enable [Pod Security Policy](https://kubernetes.io/docs/concepts/policy/pod-security-policy/) for OpenFaaS accounts | `false` |
 | `rbac` | Enable RBAC | `true` |
-| `securityContext` | Deploy with a `securityContext` set, this can be disabled for use with Istio sidecar injection | `true` |
+| `securityContext` | Give a `securityContext` template to be applied to each of the various containers in this chart, set to `{}` to disable, if required for Istio side-car injection.  | See values.yaml |
 | `serviceType` | Type of external service to use `NodePort/LoadBalancer` | `NodePort` |
 | `tolerations` | Global [Tolerations](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/) | `[]` |
 
@@ -484,17 +491,26 @@ yaml) |
 | `faasnetes.resources` | Resource limits and requests for faas-netes container | See [values.yaml](./values.yaml) |
 | `faasnetes.writeTimeout` | Write timeout for the faas-netes API | `""` (defaults to gateway.writeTimeout) |
 | `faasnetesPro.image` | Container image used for faas-netes when `openfaasPro=true` | See [values.yaml](./values.yaml) |
+| `faasnetesOem.image` | Container image used for faas-netes when `oem=true` | See [values.yaml](./values.yaml) |
+| `faasnetesPro.logs.format` | Set the log format, supports `console` or `json` | `console` |
+| `faasnetesPro.logs.debug` | Print debug logs | `false` |
 | `operator.create` | Use the OpenFaaS operator CRD controller, default uses faas-netes as the Kubernetes controller | `false` |
 | `operator.image` | Container image used for the openfaas-operator | See [values.yaml](./values.yaml) |
 | `operator.resources` | Resource limits and requests for openfaas-operator containers | See [values.yaml](./values.yaml) |
 | `operator.image` | Container image used for the openfaas-operator | See [values.yaml](./values.yaml) |
+| `operator.kubeClientQPS` | QPS rate-limit for the Kubernetes client, (OpenFaaS for Enterprises) | `""` (defaults to 100) |
+| `operator.kubeClientBurst` | Burst rate-limit for the Kubernetes client (OpenFaaS for Enterprises) | `""` (defaults to 250) |
+| `operator.reconcileWorkers` | Number of reconciliation workers to run to convert Function CRs into Deployments | `1` |
+| `operator.logs.format` | Set the log format, supports `console` or `json` | `console` |
+| `operator.logs.debug`           | Print debug logs    | `false`                        |
+| `operator.leaderElection.enabled`| When set to true, only one replica of the operator within the gateway pod will perform reconciliation | `false` |
 
 ### Functions
 
 | Parameter               | Description                           | Default                                                    |
 | ----------------------- | ----------------------------------    | ---------------------------------------------------------- |
 | `functions.httpProbe` | Use a httpProbe instead of exec | `true` |
-| `functions.imagePullPolicy` | Image pull policy for deployed functions | `Always` |
+| `functions.imagePullPolicy` | Image pull policy for deployed functions (OpenFaaS Pro) | `Always` |
 | `functions.livenessProbe.initialDelaySeconds` | Number of seconds after the container has started before [probe](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#container-probes) is initiated  | `2` |
 | `functions.livenessProbe.periodSeconds` | How often (in seconds) to perform the [probe](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#container-probes) | `2` |
 | `functions.livenessProbe.timeoutSeconds` | Number of seconds after which the [probe](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#container-probes) times out | `1` |
@@ -526,14 +542,11 @@ yaml) |
 | `jetstreamQueueWorker.logs.debug` | Log debug messages | `false` |
 | `jetstreamQueueWorker.logs.format` | Set the log format, supports `console` or `json` | `console` |
 | `nats.channel` | The name of the NATS Streaming channel or NATS JetStream stream to use for asynchronous function invocations | `faas-request` |
-| `nats.enableMonitoring` | Enable the NATS monitoring endpoints on port `8222` for NATS Streaming deployments managed by this chart | `false` |
 | `nats.external.clusterName` | The name of the externally-managed NATS Streaming server | `""` |
 | `nats.external.enabled` | Whether to use an externally-managed NATS Streaming server | `false` |
 | `nats.external.host` | The host at which the externally-managed NATS Streaming server can be reached | `""` |
 | `nats.external.port` | The port at which the externally-managed NATS Streaming server can be reached | `""` |
 | `nats.image` | Container image used for NATS | See [values.yaml](./values.yaml) |
-| `nats.metrics.enabled` | Export Prometheus metrics for NATS, no multi-arch support  | `false` |
-| `nats.metrics.image` | Container image used for the NATS Prometheus exporter | See [values.yaml](./values.yaml) |
 | `nats.resources` | Resource limits and requests for the nats pods | See [values.yaml](./values.yaml) |
 | `nats.streamReplication` | JetStream stream replication factor. For production a value of at least 3 is recommended. | `1` |
 | `queueWorker.ackWait` | Max duration of any async task/request | `60s` |
@@ -542,6 +555,7 @@ yaml) |
 | `queueWorker.replicas` | Replicas of the queue-worker, pick more than `1` for HA | `1` |
 | `queueWorker.resources` | Resource limits and requests for the queue-worker pods | See [values.yaml](./values.yaml) |
 | `queueWorker.queueGroup` | The name of the queue group used to process asynchronous function invocations | `faas` |
+| `queueWorkerPro.backoff` | The backoff algorithm used for retries. Must be one off `exponential`, `full` or `equal`| `exponential` |
 | `queueWorkerPro.httpRetryCodes` | Comma-separated list of HTTP status codes the queue-worker should retry | `408,429,500,502,503,504` |
 | `queueWorkerPro.image` | Container image used for the Pro version of the queue-worker | See [values.yaml](./values.yaml) |
 | `queueWorkerPro.initialRetryWait` | Time to wait for the first retry | `10s` |
@@ -562,6 +576,9 @@ yaml) |
 | `iam.dashboardIssuer.clientId` | OAuth Client Id for the dashboard | `""` |
 | `iam.dashboardIssuer.clientSecret` | Name of the Kubernetes secret that contains the OAuth client secret for the dashboard | `""` |
 | `iam.dashboardIssuer.scopes` | OpenID Connect (OIDC) scopes for the dashboard | `[openid, email, profile]` |
+| `iam.kubernetesIssuer.create` | Create a JwtIssuer object for the kubernetes service account issuer | `true` |
+| `iam.kubernetesIssuer.tokenExpiry` | Expiry time of OpenFaaS access tokens exchanged for tokens issued by the Kubernetes issuer. | `2h` | 
+| `iam.kubernetesIssuer.url` | URL for the Kubernetes service account issuer. | `https://kubernetes.default.svc.cluster.local` |
 
 ### Dashboard (OpenFaaS Pro)
 
@@ -586,21 +603,26 @@ yaml) |
 | `oidcAuthPlugin.resources` | Resource limits and requests for the oidc-auth-plugin containers | See [values.yaml](./values.yaml) |
 | `oidcAuthPlugin.verbose` | Enable verbose logging | `false` |
 
+### Event subscriptions
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `eventSubscription.endpoint` | The webhook endpoint to receive events. | `""`|
+| `eventSubscription.endpointSecret` | Name of the Kubernetes secret that contains the secret key for signing webhook requests. | `""` |
+| `eventSubscription.insecureTLS` | Enable insecure TLS for webhook invocations | `false` |
+| `eventSubscription.metering.enabled` | Enable metering events. | `false` |
+| `eventSubscription.metering.defaultRAM` | Default memory value used in function_usage events for metering when no memory limit is set on the function.  | `512Mi` |
+| `eventSubscription.metering.excludedNamespaces` | Comma-separated list of namespaces to exclude from metering for when functions are used to handle the metering webhook events | `""` |
+| `eventSubscription.auditing.enabled` | Enable auditing events | `false` |
+| `eventSubscription.auditing.httpVerbs` | Comma-separated list of HTTP methods to audit | `"PUT,POST,DELETE"`|
+| `eventWorker.image` | Container image used for the events-worker | See [values.yaml](./values.yaml) |
+| `eventWorker.resources` |  Resource limits and requests for the event-worker container | See [values.yaml](./values.yaml) |
+| `eventWorker.logs.format` | Set the log format, supports `console` or `json` | `console` |
+| `eventWorker.logs.debug` | Print debug logs    | `false` |
+
 ### faas-idler (OpenFaaS Pro)
 
 Deprecated and replaced by the new autoscaler, which supports scale to zero.
-
-| Parameter               | Description                           | Default                                                    |
-| ----------------------- | ----------------------------------    | ---------------------------------------------------------- |
-| `faasIdler.enabled` | Create the faasIdler component | `false` |
-| `faasIdler.image` | Container image used for the faas-idler | See [values.yaml](./values.yaml) |
-| `faasIdler.inactivityDuration` | Duration after which faas-idler will scale function down to 0 | `3m` |
-| `faasIdler.readOnly` | When set to true, no functions are scaled to zero | `false` |
-| `faasIdler.reconcileInterval` | The interval between each attempt to scale functions to zero | `2m` |
-| `faasIdler.replicas` | Replicas of the faas-idler | `1` |
-| `faasIdler.resources` | Resource limits and requests for the faas-idler pods | See [values.yaml](./values.yaml) |
-| `faasIdler.writeDebug` | Write additional debug information | `false` |
-
 
 ### ingressOperator
 

@@ -76,8 +76,8 @@ if [[ $clustermesh_status -ne 0 ]]; then
 fi
 
 # install example global service deployments
-kubectl --context "$context_1" apply -f https://raw.githubusercontent.com/cilium/cilium/v1.9/examples/kubernetes/clustermesh/global-service-example/cluster1.yaml
-kubectl --context "$context_2" apply -f https://raw.githubusercontent.com/cilium/cilium/v1.9/examples/kubernetes/clustermesh/global-service-example/cluster2.yaml
+kubectl --context "$context_1" apply -f https://raw.githubusercontent.com/cilium/cilium/v1.15.2/examples/kubernetes/clustermesh/global-service-example/cluster1.yaml
+kubectl --context "$context_2" apply -f https://raw.githubusercontent.com/cilium/cilium/v1.15.2/examples/kubernetes/clustermesh/global-service-example/cluster2.yaml
 
 # wait for deployments to be ready
 kubectl --context "$context_1" wait deployment x-wing --for condition=Available=True --timeout=120s

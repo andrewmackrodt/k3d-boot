@@ -40,6 +40,12 @@ spec:
       {{- end }}
       {{- end }}
 
+      {{- if .Values.caBundleSecretName }}
+      - name: ca-bundle
+        secret:
+          secretName: {{ .Values.caBundleSecretName }}
+      {{- end }}
+
       - name: license
         secret:
           secretName: openfaas-license
@@ -102,6 +108,16 @@ spec:
           value: "{{join "," .Values.iam.dashboardIssuer.scopes }}"
         {{- end }}
 
+        {{ if .Values.caBundleSecretName }}
+        - name: ca_bundle_path
+          value: /var/secrets/ca-bundle/ca.crt
+        {{- end }}
+
+        {{- if .Values.securityContext }}
+        securityContext:
+          {{- toYaml .Values.securityContext | nindent 10 }}
+        {{- end }}
+
         volumeMounts:
         {{- if .Values.basic_auth }}
         - name: auth
@@ -127,6 +143,12 @@ spec:
         - name: dashboard-jwt
           readOnly: true
           mountPath: "/var/secrets/dashboard-jwt"
+        {{- end }}
+
+        {{- if .Values.caBundleSecretName }}
+        - name: ca-bundle
+          readOnly: true
+          mountPath: "/var/secrets/ca-bundle"
         {{- end }}
 
     {{- with .Values.nodeSelector }}

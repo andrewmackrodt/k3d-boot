@@ -55,12 +55,12 @@ spec:
         secret:
           secretName: basic-auth
       {{- end }}
-      {{- if .Values.openfaasPro }}
+      {{- if or .Values.openfaasPro .Values.oem }}
       - name: license
         secret:
           secretName: openfaas-license
       {{- end }}
-      terminationGracePeriodSeconds: 1
+      # terminationGracePeriodSeconds: 1
       containers:
       - name: gateway
         resources:
@@ -78,8 +78,7 @@ spec:
         {{- end }}
         {{- if .Values.securityContext }}
         securityContext:
-          readOnlyRootFilesystem: true
-          runAsUser: 10001
+          {{- toYaml .Values.securityContext | nindent 10 }}
         {{- end }}
         livenessProbe:
           {{- if $.Values.gateway.livenessProbe }}
@@ -130,6 +129,10 @@ spec:
         - name: logs_provider_url
           value: "{{ .Values.gateway.logsProviderURL }}"
         {{- end }}
+        {{- if eq (default .Values.gatewayPro.pprof false) true }}
+        - name: pprof
+          value: {{ .Values.gatewayPro.pprof | quote }}
+        {{- end }}
         - name: read_timeout
           value: "{{ .Values.gateway.readTimeout }}"
         - name: write_timeout
@@ -158,7 +161,7 @@ spec:
         - name: faas_nats_channel
           value: "{{ .Values.nats.channel }}"
         {{- else }}
-        {{- if .Values.async }}
+        {{- if or .Values.async .Values.eventSubscription.metering.enabled }}
         - name: faas_nats_address
           value: "nats.{{ .Release.Namespace }}.svc.{{ .Values.kubernetesDNSDomain }}"
         - name: faas_nats_port
@@ -192,6 +195,16 @@ spec:
           value: "{{ .Values.gateway.maxIdleConnsPerHost }}"
         - name: probe_functions
           value: "{{ .Values.gateway.probeFunctions }}"
+        - name: async
+          value: "{{ .Values.async }}"
+{{- if .Values.eventSubscription.metering.enabled }}
+        - name: metering 
+          value: "{{ .Values.eventSubscription.metering.enabled }}"
+        - name: metering_excluded_namespaces
+          value: "{{ .Values.eventSubscription.metering.excludedNamespaces }}"
+        - name: metering_default_memory 
+          value: "{{ .Values.eventSubscription.metering.defaultRAM }}"
+{{- end }}
         volumeMounts:
         # - name: faas-auth
         #   mountPath: /var/run/secrets/faas-auth
@@ -209,6 +222,9 @@ spec:
         - name: http
           containerPort: 8080
           protocol: TCP
+        - name: gw-metrics
+          containerPort: 8082
+          protocol: TCP
       {{- if .Values.operator.create }}
       - name: operator
         resources:
@@ -220,6 +236,8 @@ spec:
           - -operator=true
           - "-license-file=/var/secrets/license/license"
         env:
+          - name: reconcile_workers
+            value: {{ .Values.operator.reconcileWorkers | quote }}
           - name: port
             value: "8081"
           - name: function_namespace
@@ -256,6 +274,28 @@ spec:
             value: "{{ .Values.functions.livenessProbe.failureThreshold }}"
           - name: cluster_role
             value: "{{ .Values.clusterRole }}"
+          - name: kube_client_qps
+            value: "{{ .Values.operator.kubeClientQPS }}"
+          - name: kube_client_burst
+            value: "{{ .Values.operator.kubeClientBurst }}"
+          - name: reconcile_qps
+            value: "{{ .Values.operator.reconcileQPS }}"
+          - name: reconcile_burst
+            value: "{{ .Values.operator.reconcileBurst }}"
+          {{ if .Values.operator.leaderElection.enabled }}
+          - name: leader_election
+            value: "true"
+          {{- end }}
+          {{- if eq (or .Values.operator.pprof false) true }}
+          - name: pprof
+            value: {{ .Values.operator.pprof | quote }}
+          {{- end }}
+          {{- if .Values.operator.logs}}
+          - name: "debug"
+            value: "{{ .Values.operator.logs.debug }}"
+          - name: "log_encoding"
+            value: "{{ .Values.operator.logs.format }}"
+          {{- end }}
           {{- if .Values.iam.enabled }}
           - name: issuer_key_path
             value: "/var/secrets/issuer-key/issuer.key"
@@ -268,8 +308,26 @@ spec:
           - name: secret_mount_path
             value: "/var/secrets"
           {{- end }}
+          {{- if .Values.eventSubscription.auditing.enabled }}
+          {{- if .Values.nats.external.enabled }}
+          - name: nats_address
+            value: "{{ .Values.nats.external.host }}"
+          - name: nats_port
+            value: "{{ .Values.nats.external.port }}"
+          {{- else }}
+          - name: nats_address
+            value: "nats.{{ .Release.Namespace }}.svc.{{ .Values.kubernetesDNSDomain }}"
+          - name: nats_port
+            value: "4222"
+          {{- end }}
+          - name: auditing
+            value: "{{ .Values.eventSubscription.auditing.enabled }}"
+          - name: auditing_http_verbs
+            value: "{{ .Values.eventSubscription.auditing.httpVerbs }}"
+          {{- end}}
         ports:
-        - containerPort: 8081
+        - name: provider
+          containerPort: 8081
           protocol: TCP
         volumeMounts:
         {{- if .Values.iam.enabled }}
@@ -294,19 +352,19 @@ spec:
           {{- .Values.faasnetes.resources | toYaml | nindent 12 }}
       {{- if .Values.openfaasPro }}
         image: {{ .Values.faasnetesPro.image }}
+      {{- else if .Values.oem }}
+        image: {{ .Values.faasnetesOem.image}}
       {{- else }}
         image: {{ .Values.faasnetes.image }}
       {{- end }}
         imagePullPolicy: {{ .Values.openfaasImagePullPolicy }}
         {{- if .Values.securityContext }}
         securityContext:
-          readOnlyRootFilesystem: true
-          runAsUser: 10001
+          {{- toYaml .Values.securityContext | nindent 10 }}
         {{- end }}
         command:
           - ./faas-netes
-          - -operator=false
-        {{- if .Values.openfaasPro }}
+        {{- if or .Values.openfaasPro .Values.oem }}
           - "-license-file=/var/secrets/license/license"
         {{- end }}
         env:
@@ -358,13 +416,36 @@ spec:
         - name: secret_mount_path
           value: "/var/secrets"
         {{- end }}
+        {{- if .Values.eventSubscription.auditing.enabled }}
+        {{- if .Values.nats.external.enabled }}
+        - name: nats_address
+          value: "{{ .Values.nats.external.host }}"
+        - name: nats_port
+          value: "{{ .Values.nats.external.port }}"
+        {{- else }}
+        - name: nats_address
+          value: "nats.{{ .Release.Namespace }}.svc.{{ .Values.kubernetesDNSDomain }}"
+        - name: nats_port
+          value: "4222"
+        {{- end }}
+        - name: auditing
+          value: "{{ .Values.eventSubscription.auditing.enabled }}"
+        - name: auditing_http_verbs
+          value: "{{ .Values.eventSubscription.auditing.httpVerbs }}"
+        {{- end}}
+        {{- if .Values.faasnetesPro.logs}}
+        - name: "debug"
+          value: "{{ .Values.faasnetesPro.logs.debug }}"
+        - name: "log_encoding"
+          value: "{{ .Values.faasnetesPro.logs.format }}"
+        {{- end }}
         volumeMounts:
         {{- if .Values.iam.enabled }}
         - name: issuer-key
           readOnly: true
           mountPath: "/var/secrets/issuer-key"
         {{- end }}
-        {{- if .Values.openfaasPro }}
+        {{- if or .Values.openfaasPro .Values.oem }}
         - name: license
           readOnly: true
           mountPath: "/var/secrets/license"
@@ -377,7 +458,8 @@ spec:
         - mountPath: /tmp
           name: faas-netes-temp-volume
         ports:
-        - containerPort: 8081
+        - name: provider
+          containerPort: 8081
           protocol: TCP
       {{- end }}
     {{- with .Values.nodeSelector }}

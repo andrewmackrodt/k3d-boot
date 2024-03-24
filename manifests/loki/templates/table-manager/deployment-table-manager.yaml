@@ -58,10 +58,10 @@ spec:
             {{- end }}
           ports:
             - name: http-metrics
-              containerPort: 3100
+              containerPort: {{ .Values.loki.server.http_listen_port }}
               protocol: TCP
             - name: grpc
-              containerPort: 9095
+              containerPort: {{ .Values.loki.server.grpc_listen_port }}
               protocol: TCP
           {{- with .Values.tableManager.extraEnv }}
           env:
@@ -90,6 +90,10 @@ spec:
         {{- end }}
       {{- with .Values.tableManager.affinity }}
       affinity:
+        {{- tpl . $ | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tableManager.dnsConfig }}
+      dnsConfig:
         {{- tpl . $ | nindent 8 }}
       {{- end }}
       {{- with .Values.tableManager.nodeSelector }}
