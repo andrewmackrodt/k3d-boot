@@ -336,7 +336,7 @@ if [[ "$proxy_protocol" == "true" ]]; then
 else
   if [[ "$proxy_no_labels" == "false" ]]; then
     proxy_args+=( --label "traefik.enable=true" )
-    proxy_args+=( --label "traefik.http.routers.$proxy_service.rule=HostRegexp(\`$proxy_host\`, \`{subdomain:[a-z0-9_-]+}.$proxy_host\`)" )
+    proxy_args+=( --label "traefik.http.routers.$proxy_service.rule=HostRegexp(\`$proxy_host\`) || HostRegexp(\`{subdomain:[a-z0-9_-]+}.$proxy_host\`)" )
     proxy_args+=( --label "traefik.http.routers.$proxy_service.entryPoints=$proxy_entrypoint" )
     proxy_args+=( --label "traefik.http.routers.$proxy_service.tls.certResolver=$proxy_certresolver" )
     proxy_args+=( --label "traefik.http.routers.$proxy_service.tls.domains[0].main=$proxy_host" )
